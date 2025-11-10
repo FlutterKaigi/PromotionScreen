@@ -124,9 +124,10 @@ CORS は `CONFIG.signageAllowOrigin`（デフォルト `*`）で許可。署名�
   1. `main` に変更をコミット
   2. `gh-pages` にチェックアウト
   3. `git checkout main -- public/ index.html upload.html`（必要ファイルを取り込み）
-  4. コミットして `git push origin gh-pages`
+  4. `public/` の内容をルートに移動: `cp -r public/* . && rm -rf public`
+  5. コミットして `git push origin gh-pages`
 
-GitHub Pages の設定（Settings → Pages）で `gh-pages` を公開対象にします（ルート/`/public` は構成に合わせて選択）。
+GitHub Pages の設定（Settings → Pages）で `gh-pages` ブランチを公開対象にし、**ソースを `/` (root)** に設定します。
 
 ### GAS（Apps Script）
 - `clasp` を使う場合は、`clasp push` → デプロイの更新

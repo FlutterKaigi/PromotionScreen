@@ -44,6 +44,9 @@ PromotionScreen/
 - Bot Scopes の目安
   - `chat:write`（メッセージ投稿）
   - `files:write`（ファイルアップロード v2/External）
+- **重要**: Botを投稿先のチャンネルに招待する必要があります
+  - Slackでチャンネルを開き、`/invite @Bot名` でBotを招待してください
+  - または、チャンネル設定からBotを追加してください
 - Interactivity を有効化して、Request URL を GAS の Web アプリ URL（`doPost`）に設定
 - 通知先のチャンネルID（`SLACK_CHANNEL_ID`）を控える
 

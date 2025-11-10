@@ -43,6 +43,7 @@ PromotionScreen/
 - Bot Token（`SLACK_BOT_TOKEN`）と Signing Secret（`SLACK_SIGNING_SECRET`）を取得
 - Bot Scopes の目安
   - `chat:write`（メッセージ投稿）
+  - `chat:write.public`（参加していないチャンネルにも投稿可能、推奨）
   - `files:write`（ファイルアップロード v2/External）
 - **重要**: Botを投稿先のチャンネルに招待する必要があります
   - Slackでチャンネルを開き、`/invite @Bot名` でBotを招待してください

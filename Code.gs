@@ -1078,109 +1078,81 @@ function handleSlackInteractivity(event) {
       }
 
       if (action.action_id === "ng_reason") {
-        // trigger_idの有効期限は3秒なので、最速でモーダルを開く
-        try {
-          const view = {
-            type: "modal",
-            callback_id: "ng_modal",
-            title: { type: "plain_text", text: "NG理由" },
-            submit: { type: "plain_text", text: "送信" },
-            close: { type: "plain_text", text: "キャンセル" },
-            private_metadata: JSON.stringify({
-              fileId: val.fileId,
-              name: val.name,
-              channel: channel,
-              ts: ts,
-              blocks: payload.message.blocks
-            }),
-            blocks: [
-              {
-                type: "input",
-                block_id: "reason_block",
-                label: { type: "plain_text", text: "NG理由（選択）" },
-                element: {
-                  type: "static_select",
-                  action_id: "reason_select",
-                  placeholder: { type: "plain_text", text: "選択してください" },
-                  options: [
-                    { text: { type: "plain_text", text: "不適切な内容" }, value: "inappropriate" },
-                    { text: { type: "plain_text", text: "肖像権・著作権の懸念" }, value: "rights" },
-                    { text: { type: "plain_text", text: "画質/縦横比が基準外" }, value: "quality" },
-                    { text: { type: "plain_text", text: "重複アップロード" }, value: "duplicate" },
-                    { text: { type: "plain_text", text: "その他" }, value: "other" }
-                  ]
-                }
-              },
-              {
-                type: "input",
-                block_id: "reason_block2",
-                optional: true,
-                label: { type: "plain_text", text: "補足（任意）" },
-                element: {
-                  type: "plain_text_input",
-                  action_id: "reason_text",
-                  multiline: true,
-                  placeholder: { type: "plain_text", text: "詳細やメモを入力" }
-                }
-              },
-              {
-                type: "section",
-                block_id: "email_notify_block",
-                text: {
-                  type: "mrkdwn",
-                  text: "NG理由をメールに含める場合はチェックしてください。"
-                },
-                accessory: {
-                  type: "checkboxes",
-                  action_id: "email_notify",
-                  options: [
-                    {
-                      text: {
-                        type: "plain_text",
-                        text: "NG理由をメールに含める"
-                      },
-                      value: "include_reason"
-                    }
-                  ]
-                }
+        // レスポンスでモーダルを直接プッシュ → 3秒ルール対策
+        const view = {
+          type: "modal",
+          callback_id: "ng_modal",
+          title: { type: "plain_text", text: "NG理由" },
+          submit: { type: "plain_text", text: "送信" },
+          close: { type: "plain_text", text: "キャンセル" },
+          private_metadata: JSON.stringify({
+            fileId: val.fileId,
+            name: val.name,
+            channel: channel,
+            ts: ts,
+            blocks: payload.message.blocks
+          }),
+          blocks: [
+            {
+              type: "input",
+              block_id: "reason_block",
+              label: { type: "plain_text", text: "NG理由（選択）" },
+              element: {
+                type: "static_select",
+                action_id: "reason_select",
+                placeholder: { type: "plain_text", text: "選択してください" },
+                options: [
+                  { text: { type: "plain_text", text: "不適切な内容" }, value: "inappropriate" },
+                  { text: { type: "plain_text", text: "肖像権・著作権の懸念" }, value: "rights" },
+                  { text: { type: "plain_text", text: "画質/縦横比が基準外" }, value: "quality" },
+                  { text: { type: "plain_text", text: "重複アップロード" }, value: "duplicate" },
+                  { text: { type: "plain_text", text: "その他" }, value: "other" }
+                ]
               }
-            ]
-          };
+            },
+            {
+              type: "input",
+              block_id: "reason_block2",
+              optional: true,
+              label: { type: "plain_text", text: "補足（任意）" },
+              element: {
+                type: "plain_text_input",
+                action_id: "reason_text",
+                multiline: true,
+                placeholder: { type: "plain_text", text: "詳細やメモを入力" }
+              }
+            },
+            {
+              type: "section",
+              block_id: "email_notify_block",
+              text: {
+                type: "mrkdwn",
+                text: "NG理由をメールに含める場合はチェックしてください。"
+              },
+              accessory: {
+                type: "checkboxes",
+                action_id: "email_notify",
+                options: [
+                  {
+                    text: {
+                      type: "plain_text",
+                      text: "NG理由をメールに含める"
+                    },
+                    value: "include_reason"
+                  }
+                ]
+              }
+            }
+          ]
+        };
 
-          const modalResp = UrlFetchApp.fetch("https://slack.com/api/views.open", {
-            method: "post",
-            headers: { Authorization: "Bearer " + CONFIG.slackBotToken },
-            contentType: "application/json",
-            payload: JSON.stringify({
-              trigger_id: payload.trigger_id,
-              view: view
-            }),
-            muteHttpExceptions: true,
-          });
-          
-          const modalData = JSON.parse(modalResp.getContentText() || "{}");
-          if (!modalData.ok) {
-            paperLog("[handleSlackInteractivity] モーダル起動失敗", "error=" + (modalData.error || "なし"));
-            
-            // エラーメッセージをスレッドに投稿
-            UrlFetchApp.fetch("https://slack.com/api/chat.postMessage", {
-              method: "post",
-              headers: { Authorization: "Bearer " + CONFIG.slackBotToken },
-              contentType: "application/json",
-              payload: JSON.stringify({
-                channel: channel,
-                thread_ts: ts,
-                text: `⚠️ モーダル起動エラー: ${modalData.error || "不明なエラー"}`
-              }),
-              muteHttpExceptions: true,
-            });
-          } else {
-            paperLog("[handleSlackInteractivity] モーダル起動成功");
-          }
-        } catch (err) {
-          paperLog("[handleSlackInteractivity] モーダルエラー", "error=" + String(err));
-        }
-        return ContentService.createTextOutput("").setMimeType(ContentService.MimeType.TEXT);
+        paperLog("[handleSlackInteractivity] NGモーダルをレスポンスで送信");
+        return ContentService.createTextOutput(
+          JSON.stringify({
+            response_action: "push",
+            view: view
+          })
+        ).setMimeType(ContentService.MimeType.JSON);
       }
     }
 

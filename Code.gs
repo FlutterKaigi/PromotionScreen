@@ -311,11 +311,31 @@ function postPhotoToSlackWithBlockKit(file, payload) {
 
   const completeData = JSON.parse(completeResp.getContentText() || "{}");
   if (!completeData.ok) {
-    paperLog("[ERROR] [postPhotoToSlackWithBlockKit] アップロード完了通知エラー", "error=" + completeResp.getContentText());
-    return;
+    paperLog("[WARN] [postPhotoToSlackWithBlockKit] アップロード完了通知エラー（フォールバック処理へ）", "error=" + completeResp.getContentText());
+    
+    // フォールバック: chat.postMessageで画像URLを含めて投稿
+    const fallbackResp = UrlFetchApp.fetch("https://slack.com/api/chat.postMessage", {
+      method: "post",
+      headers: { 
+        Authorization: "Bearer " + CONFIG.slackBotToken
+      },
+      contentType: "application/json",
+      payload: JSON.stringify({
+        channel: CONFIG.slackChannelId,
+        text: `*${escapeMrkdwn(file.getName())}*\n${new Date().toLocaleString("ja-JP")}\nコメント: ${escapeMrkdwn(comment)}\n<${fileUrl}|📷 Driveで画像を開く>`,
+      }),
+      muteHttpExceptions: true,
+    });
+    
+    const fallbackData = JSON.parse(fallbackResp.getContentText() || "{}");
+    if (!fallbackData.ok) {
+      paperLog("[ERROR] [postPhotoToSlackWithBlockKit] フォールバック投稿も失敗", "error=" + fallbackResp.getContentText());
+      return;
+    }
+    paperLog("[postPhotoToSlackWithBlockKit] フォールバック投稿成功");
+  } else {
+    paperLog("[postPhotoToSlackWithBlockKit] アップロード完了");
   }
-
-  paperLog("[postPhotoToSlackWithBlockKit] アップロード完了");
 
   // ステップ4: ボタン付きメッセージを画像の直後に投稿
   paperLog("[postPhotoToSlackWithBlockKit] ボタンメッセージ投稿開始");

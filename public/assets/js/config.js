@@ -14,7 +14,7 @@
  */
 
 // ====== 設定 ======
-const API_BASE = 'https://script.google.com/macros/s/AKfycbz1wVoaQdo_VYU8bLTcC4S7v8EjBSEWyTM-qg-tqZM7es5gcdvUWF7oNvnSf-gLqvhiew/exec'; // ★GASの実行URL
+const API_BASE = 'https://script.google.com/macros/s/REPLACE_WITH_GAS_URL/exec'; // ★GASの実行URL
 const SLIDE_MS = 30000;   // 1枚の表示時間
 const FADE_MS = 2000;   // フェード時間
 const HALF_LIFE_HOURS = 6; // 新しさ重み付けの半減期（短いほど新着を強く優遇）

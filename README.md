@@ -70,7 +70,7 @@ PromotionScreen/
   - `SLACK_CHANNEL_ID`: 投稿チャンネルID
 - 任意（その他）
   - `SIGNAGE_FOLDER_ID`: サイネージ参照用フォルダID（未設定なら `OK_FOLDER_ID` を使用）
-  - `SHARED_SECRET`: サイネージAPI署名用キー（未設定時は `TEMP_SECRET`）
+  - `SHARED_SECRET`: サイネージAPI署名用キー（未設定時は `CHANGE_ME_SHARED_SECRET`）
   - `AUDIT_SHEET_ID`: 監査ログ記録用スプレッドシートID
   - `DEBUG_SHEET_ID`: デバッグログ用スプレッドシートID
   - `DEBUG_MODE`: `true` のとき、紙ログ（`paperLog`）をスプレッドシートにも出力

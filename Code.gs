@@ -25,7 +25,7 @@
  * - SIGNAGE_FOLDER_ID: サイネージ表示用フォルダのID（未設定の場合はOK_FOLDER_IDを使用）
  * 
  * === その他の設定（オプション） ===
- * - SHARED_SECRET: サイネージAPIの署名用シークレット（デフォルト: "TEMP_SECRET"）
+ * - SHARED_SECRET: サイネージAPIの署名用シークレット（未設定時は "CHANGE_ME_SHARED_SECRET" を使用）
  * - AUDIT_SHEET_ID: 監査ログ用スプレッドシートID
  * - DEBUG_SHEET_ID: デバッグログ用スプレッドシートID
  * - DEBUG_MODE: デバッグモード（"true"の場合のみスプレッドシートにログを書き込む）
@@ -52,7 +52,7 @@ const CONFIG = {
   signageAllowOrigin: '*', // CORS設定
   
   // ===== その他の設定 =====
-  sharedSecret: PropertiesService.getScriptProperties().getProperty("SHARED_SECRET") || "TEMP_SECRET",
+  sharedSecret: PropertiesService.getScriptProperties().getProperty("SHARED_SECRET") || "CHANGE_ME_SHARED_SECRET",
   auditSheetId: PropertiesService.getScriptProperties().getProperty("AUDIT_SHEET_ID") || "",
   debugMode: PropertiesService.getScriptProperties().getProperty("DEBUG_MODE") === "true",
   debugSheetId: PropertiesService.getScriptProperties().getProperty("DEBUG_SHEET_ID") || "",
@@ -100,19 +100,10 @@ const STATUS = {
 };
 
 function doPost(event) {
-  // 最初に必ずログを出力（doPost が呼ばれているか確認）
-  paperLog("[doPost] 関数が呼ばれました", new Date().toISOString());
-  
   try {
-    if (CONFIG.debugMode) {
-      paperLog("[doPost] リクエスト受信", "contentType=" + (event?.postData?.type || "なし"), "hasPostData=" + !!event?.postData);
-      paperLog("[doPost] CONFIG確認", "slackBotToken=" + (CONFIG.slackBotToken ? "設定済み(" + CONFIG.slackBotToken.substring(0, 10) + "...)" : "未設定"), "slackChannelId=" + (CONFIG.slackChannelId || "未設定"));
-    }
-    
-    // Slack Interactivity リクエストかどうかを判定
     const contentType = event?.postData?.type || "";
     const isSlackRequest = contentType === "application/x-www-form-urlencoded" && event?.parameter?.payload;
-    
+
     if (isSlackRequest) {
       if (CONFIG.debugMode) {
         paperLog("[doPost] Slack Interactivity リクエストとして処理");
@@ -120,6 +111,12 @@ function doPost(event) {
       return handleSlackInteractivity(event);
     }
 
+    if (CONFIG.debugMode) {
+      paperLog("[doPost] リクエスト受信", "contentType=" + (event?.postData?.type || "なし"), "hasPostData=" + !!event?.postData);
+      paperLog("[doPost] CONFIG確認", "slackBotToken=" + (CONFIG.slackBotToken ? "設定済み(" + CONFIG.slackBotToken.substring(0, 10) + "...)" : "未設定"), "slackChannelId=" + (CONFIG.slackChannelId || "未設定"));
+    }
+    
+    // Slack Interactivity リクエストかどうかを判定
     // リクエストボディを解析
     if (!event?.postData?.contents) {
       paperLog("[doPost] エラー: リクエストデータが空");
@@ -1005,7 +1002,9 @@ function handleAsyncNGProcessing(payload) {
 // =========================
 
 function handleSlackInteractivity(event) {
-  paperLog("[handleSlackInteractivity] 関数が呼ばれました");
+  const ENABLE_INTERACTION_LOG = false; // 一時的にログを抑止
+  const log = ENABLE_INTERACTION_LOG ? paperLog : function () {};
+  log("[handleSlackInteractivity] 関数が呼ばれました");
   
   try {
     // 署名検証（開発時はスキップ）
@@ -1014,14 +1013,14 @@ function handleSlackInteractivity(event) {
     // }
 
     const payloadRaw = event.parameter.payload || "";
-    paperLog("[handleSlackInteractivity] payloadRaw確認", "hasPayload=" + !!payloadRaw, "length=" + (payloadRaw?.length || 0));
+    log("[handleSlackInteractivity] payloadRaw確認", "hasPayload=" + !!payloadRaw, "length=" + (payloadRaw?.length || 0));
     
     if (!payloadRaw) {
       return ContentService.createTextOutput("ok").setMimeType(ContentService.MimeType.TEXT);
     }
 
     const payload = JSON.parse(payloadRaw);
-    paperLog("[handleSlackInteractivity] payload解析完了", "type=" + (payload.type || "なし"));
+    log("[handleSlackInteractivity] payload解析完了", "type=" + (payload.type || "なし"));
 
     if (payload.type === "block_actions") {
       const action = payload.actions[0];
@@ -1030,10 +1029,10 @@ function handleSlackInteractivity(event) {
       const ts = payload.message.ts;
       const val = JSON.parse(action.value);
       
-      paperLog("[handleSlackInteractivity] block_actions", "action_id=" + action.action_id, "channel=" + channel, "ts=" + ts);
+      log("[handleSlackInteractivity] block_actions", "action_id=" + action.action_id, "channel=" + channel, "ts=" + ts);
 
       if (action.action_id === "ok_move") {
-        paperLog("[handleSlackInteractivity] OK処理開始", "fileId=" + val.fileId, "fileName=" + val.name);
+        log("[handleSlackInteractivity] OK処理開始", "fileId=" + val.fileId, "fileName=" + val.name);
         
         try {
           // ファイルを OK フォルダへ移動
@@ -1044,11 +1043,11 @@ function handleSlackInteractivity(event) {
 
           // メッセージを更新してボタンを無効化し、完了ステータスを追加
           let updatedBlocks = JSON.parse(JSON.stringify(payload.message.blocks || []));
-          paperLog("[handleSlackInteractivity] 元のブロック数", "count=" + updatedBlocks.length);
+          log("[handleSlackInteractivity] 元のブロック数", "count=" + updatedBlocks.length);
           
           // actionsブロックを削除
           updatedBlocks = updatedBlocks.filter((b) => b.type !== "actions");
-          paperLog("[handleSlackInteractivity] actions削除後のブロック数", "count=" + updatedBlocks.length);
+          log("[handleSlackInteractivity] actions削除後のブロック数", "count=" + updatedBlocks.length);
           
           // ステータスを追加
           updatedBlocks.push({
@@ -1056,7 +1055,7 @@ function handleSlackInteractivity(event) {
             elements: [{ type: "mrkdwn", text: `✅ 承認済み by <@${userId}> → OKフォルダへ移動しました` }]
           });
 
-          paperLog("[handleSlackInteractivity] chat.update呼び出し", "channel=" + channel, "ts=" + ts);
+          log("[handleSlackInteractivity] chat.update呼び出し", "channel=" + channel, "ts=" + ts);
           const updateResp = UrlFetchApp.fetch("https://slack.com/api/chat.update", {
             method: "post",
             headers: { Authorization: "Bearer " + CONFIG.slackBotToken },
@@ -1071,13 +1070,13 @@ function handleSlackInteractivity(event) {
           });
           
           const updateData = JSON.parse(updateResp.getContentText() || "{}");
-          paperLog("[handleSlackInteractivity] chat.updateレスポンス", "ok=" + updateData.ok, "error=" + (updateData.error || "なし"));
+          log("[handleSlackInteractivity] chat.updateレスポンス", "ok=" + updateData.ok, "error=" + (updateData.error || "なし"));
           
           if (!updateData.ok) {
             paperLog("[ERROR] [handleSlackInteractivity] メッセージ更新エラー", "error=" + updateResp.getContentText());
           }
           
-          paperLog("[handleSlackInteractivity] OK処理完了", "fileId=" + val.fileId);
+          log("[handleSlackInteractivity] OK処理完了", "fileId=" + val.fileId);
         } catch (err) {
           paperLog("[ERROR] [handleSlackInteractivity] OK処理エラー", "error=" + String(err), "stack=" + (err.stack || "なし"));
           
@@ -1166,7 +1165,7 @@ function handleSlackInteractivity(event) {
           ]
         };
 
-        paperLog("[handleSlackInteractivity] NGモーダルをレスポンスで送信");
+        log("[handleSlackInteractivity] NGモーダルをレスポンスで送信");
         return ContentService.createTextOutput(
           JSON.stringify({
             response_action: "push",
@@ -1186,7 +1185,7 @@ function handleSlackInteractivity(event) {
       
       // メールに理由を含めるかのチェック状態を取得
       const includeReasonInEmail = st.email_notify_block?.email_notify?.selected_options?.length > 0;
-      paperLog("[handleSlackInteractivity] NG処理開始", "fileId=" + meta.fileId, "reason=" + reason, "includeReasonInEmail=" + includeReasonInEmail);
+      log("[handleSlackInteractivity] NG処理開始", "fileId=" + meta.fileId, "reason=" + reason, "includeReasonInEmail=" + includeReasonInEmail);
 
       // 1. 非同期で実行したいデータを作成
       const asyncPayload = {
@@ -1245,7 +1244,7 @@ function handleSlackInteractivity(event) {
 
       // ★ 最優先: モーダルを即座に閉じる（3秒タイムアウト対策）
       // 何もせずにすぐにレスポンスを返す
-      paperLog("[handleSlackInteractivity] view_submission処理完了、モーダルを閉じます");
+      log("[handleSlackInteractivity] view_submission処理完了、モーダルを閉じます");
       return ContentService.createTextOutput(
         JSON.stringify({ response_action: "clear" })
       ).setMimeType(ContentService.MimeType.JSON);
